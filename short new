@@ -1,0 +1,97 @@
+/**
+ * This script fetches and displays the edit count for a user on their contributions page.
+ * [[Justapedia:Shortdesc-helper]]
+ * Version:001
+ * Contributor: Sourav (Username: Sourav)
+ *Email:skhsouravhalder@gmail.com
+ * Appropriate credit: //github.com/Skhsouravhalder/Justapedia-MediaWiki-Gadget-Shortdesc-helper/tree/main
+ */
+
+(function() {
+    // Check if the user has the rights to edit and if the page is an article (namespace 0) or project page (namespace 4)
+    if (mw.config.get('wgIsProbablyEditable') && (mw.config.get('wgNamespaceNumber') === 0 || mw.config.get('wgNamespaceNumber') === 4)) {
+        // Function to check for short description template
+        function checkForShortDescription() {
+            var api = new mw.Api();
+            var pageName = mw.config.get('wgPageName');
+
+            api.get({
+                action: 'query',
+                prop: 'revisions',
+                titles: pageName,
+                rvprop: 'content',
+                formatversion: 2
+            }).done(function(data) {
+                var pages = data.query.pages;
+                var page = pages[0];
+                var content = page.revisions[0].content;
+                var existingShortDesc = '';
+
+                // Check if the short description template exists and extract it
+                var match = content.match(/\{\{Short description\|(.*?)\}\}/);
+                if (match) {
+                    existingShortDesc = match[1];
+                }
+                 var match = content.match(/\{\{short description\|(.*?)\}\}/);
+                if (match) {
+                    existingShortDesc = match[1];
+                }
+
+                // Create a button element
+                var button = document.createElement('button');
+                button.innerText = existingShortDesc ? 'Edit Short Description' : 'Add Short Description';
+                button.style.marginLeft = '10px';
+                button.style.padding = '5px 10px';
+                button.style.backgroundColor = '#071b2c';
+                button.style.color = 'white';
+                button.style.border = 'none';
+                button.style.borderRadius = '4px';
+                button.style.cursor = 'pointer';
+
+                // Find the article header element
+                var articleHeader = document.querySelector('#firstHeading');
+                if (articleHeader) {
+                    articleHeader.appendChild(button);
+                }
+
+                // Function to add/edit short description
+                function addOrEditShortDesc() {
+                    var shortDesc = prompt('Enter a short description for this page:', existingShortDesc);
+
+                    if (shortDesc !== null && shortDesc.trim() !== '') {
+                        var editSummary = (existingShortDesc ? 'Editing' : 'Adding') + ' short description: ' + shortDesc;
+                        var newContent;
+
+                        if (existingShortDesc) {
+                            // Replace the existing short description
+                            newContent = content.replace(/\{\{Short description\|.*?\}\}/, '{{Short description|' + shortDesc + '}}');
+                        } else {
+                            // Add the new short description at the beginning of the content
+                            newContent = '{{Short description|' + shortDesc + '}}\n' + content;
+                        }
+
+                        // Use the MediaWiki API to edit the page
+                        new mw.Api().postWithEditToken({
+                            action: 'edit',
+                            title: pageName,
+                            summary: editSummary,
+                            text: newContent
+                        }).done(function(data) {
+                            alert('Short description ' + (existingShortDesc ? 'edited' : 'added') + ' successfully!');
+                            location.reload();
+                        }).fail(function(error) {
+                            alert('Error ' + (existingShortDesc ? 'editing' : 'adding') + ' short description: ' + error);
+                        });
+                    }
+                }
+
+                // Attach click event to the button
+                button.addEventListener('click', addOrEditShortDesc);
+            }).fail(function(error) {
+                console.error('Error fetching page content: ', error);
+            });
+        }
+
+        checkForShortDescription();
+    }
+})();
